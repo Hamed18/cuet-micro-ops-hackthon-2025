@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4   # ✅ FIXED (slash, not colon)
 
       - name: Use Node.js 24
         uses: actions/setup-node@v4
@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # ✅ FIX: Start MinIO using docker run (GitHub Actions services do NOT support `command:`)
+      # ✅ Start MinIO (GitHub services do NOT support `command:`)
       - name: Start MinIO
         run: |
           docker run -d --name minio \
@@ -41,23 +41,18 @@ jobs:
 
       - name: Prepare MinIO (bucket + fixture object)
         run: |
-          # Install mc (MinIO client)
           wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O mc
           chmod +x mc
           sudo mv mc /usr/local/bin/
 
-          # Wait for MinIO to respond, then configure alias
           until mc --insecure alias set myminio http://localhost:9000 minioadmin minioadmin --api S3v4 >/dev/null 2>&1; do
             echo "Waiting for MinIO..."
             sleep 1
           done
 
-          # Create bucket that matches S3_BUCKET_NAME used by the app
           mc --insecure mb --ignore-existing myminio/downloads
 
-          # Upload fixture expected by the server:
-          # bucket = downloads
-          # object key = downloads/70000.zip (because sanitizeS3Key returns `downloads/<id>.zip`)
+          # Upload fixture so file_id=70000 exists (bucket: downloads, key: downloads/70000.zip)
           echo "fixture" > 70000.zip
           mc --insecure cp 70000.zip myminio/downloads/downloads/70000.zip
 
@@ -73,7 +68,6 @@ jobs:
           NODE_ENV: development
           PORT: "3000"
 
-          # S3 -> MinIO (point tests at localhost)
           S3_REGION: "us-east-1"
           S3_ENDPOINT: "http://localhost:9000"
           S3_BUCKET_NAME: "downloads"
@@ -81,7 +75,6 @@ jobs:
           S3_SECRET_ACCESS_KEY: "minioadmin"
           S3_FORCE_PATH_STYLE: "true"
 
-          # Keep stable in CI
           SENTRY_DSN: ""
           OTEL_EXPORTER_OTLP_ENDPOINT: ""
           REQUEST_TIMEOUT_MS: "30000"
@@ -89,7 +82,6 @@ jobs:
           RATE_LIMIT_MAX_REQUESTS: "100"
           CORS_ORIGINS: "*"
 
-          # Disable random long delays in CI
           DOWNLOAD_DELAY_ENABLED: "false"
           DOWNLOAD_DELAY_MIN_MS: "0"
           DOWNLOAD_DELAY_MAX_MS: "0"
@@ -122,14 +114,14 @@ jobs:
   build:
     name: Build Docker image
     runs-on: ubuntu-latest
-    needs: lint-test
+    needs: lint-test   # ✅ FIXED: removed security-scan dependency
     permissions:
       contents: read
       packages: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4   # ✅ FIXED (slash)
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
